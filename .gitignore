@@ -4,6 +4,7 @@
 # 1. DEPENDENCIES
 # -----------------
 /node_modules
+/.vscode
 
 # Yarn PnP and Berry (Modern Yarn)
 /.pnp
