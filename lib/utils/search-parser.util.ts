@@ -12,7 +12,7 @@ export function parseSearchQuery(query: string): SearchCondition[] {
   const queryType = query.split(',').map((p) => p.trim());
 
   for (const q of queryType) {
-    let tokens = q.split(/\S+/);
+    let tokens = q.split(/\s+/);
 
     if (tokens.length === 0) continue;
 
