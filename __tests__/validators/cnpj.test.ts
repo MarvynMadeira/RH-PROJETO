@@ -2,7 +2,7 @@ import {
   validateCNPJ,
   formatCNPJ,
   cleanedCNPJ,
-} from '@/lib/validators/cnpj.validador';
+} from '@/lib/validators/cnpj.validator';
 
 describe('CNPJ Validate', () => {
   it('deve validar CNPJ correto', () => {

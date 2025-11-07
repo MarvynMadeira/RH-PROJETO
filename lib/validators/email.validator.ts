@@ -1,6 +1,10 @@
-import { z } from 'zod';
+import { email, z } from 'zod';
+import { normalizeGmail } from '../utils/email-parser.util';
 
-export const emailSchema = z.string().email('Email inválido.');
+export const emailSchema = z
+  .string()
+  .email('Email inválido.')
+  .transform((email) => email.toLowerCase().trim());
 
 export function validateEmail(email: string): boolean {
   try {
@@ -14,7 +18,21 @@ export function validateEmail(email: string): boolean {
 export async function checkEmailExists(
   email: string,
   model: any,
-): Promise<boolean> {
-  const existing = await model.findOne({ where: { email } });
-  return !!existing;
+  excludeId?: string,
+): Promise<{ exists: boolean; normalizedEmail: string; existingRecord?: any }> {
+  const normalizedEmail = normalizeGmail(email);
+
+  let where: any = { email: normalizedEmail };
+
+  if (excludeId) {
+    const { Op } = require('sequelize');
+    where.id = { [Op.ne]: excludeId };
+  }
+  const existing = await model.findOne({ where });
+
+  return {
+    exists: !!existing,
+    normalizedEmail,
+    existingRecord: existing || undefined,
+  };
 }

@@ -6,7 +6,7 @@ import {
   getFileUrl,
   validateFileType,
   validateFileSize,
-} from '@/lib/utils/file.utils';
+} from '@/lib/utils/file.util';
 
 describe('File Utils', () => {
   const testBase64 =
