@@ -1,22 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  return NextResponse.json({ message: 'Get custom field', id: params.id });
-}
-
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  return NextResponse.json({ message: 'Update custom field', id: params.id });
-}
+import { requireAdmin } from '@/lib/middleware/auth.middleware';
+import { CustomField } from '@/lib/database/models';
+import { handleError } from '@/lib/errors/error-handler';
+import { NotFoundError } from '@/lib/errors/AppError';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
-  return NextResponse.json({ message: 'Delete custom field', id: params.id });
+  try {
+    let admin = requireAdmin(request);
+
+    const field = await CustomField.findOne({
+      where: { id: params.id, adminId: admin.id },
+    });
+
+    if (!field) {
+      throw new NotFoundError('Campo customizado');
+    }
+
+    await field.destroy();
+
+    return NextResponse.json({
+      success: true,
+      message: 'Campo deletado com sucesso',
+    });
+  } catch (error) {
+    return handleError(error);
+  }
 }
