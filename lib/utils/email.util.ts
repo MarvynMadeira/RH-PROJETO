@@ -5,9 +5,7 @@ let emailTransporter: Transporter | null = null;
 function getTransporter(): Transporter {
   if (!emailTransporter) {
     emailTransporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false,
+      service: 'gmail',
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -21,9 +19,9 @@ export async function sendVerificationEmail(
   email: string,
   token: string,
 ): Promise<void> {
-  const transporter = getTransporter();
+  let transporter = getTransporter();
 
-  const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/verify-email?token=${token}`;
+  let verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/verify-email?token=${token}`;
 
   await transporter.sendMail({
     from: process.env.SMTP_FROM,

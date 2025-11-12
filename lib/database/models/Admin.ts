@@ -4,15 +4,15 @@ import { validateCNPJ } from '@/lib/validators/cnpj.validator';
 import { normalizeGmail } from '@/lib/utils/email-parser.util';
 
 export class Admin extends Model {
-  public id!: string;
-  public email!: string;
-  public password!: string;
-  public cpfCnpj!: string;
-  public name!: string;
-  public uniqueToken!: string;
-  public emailVerified!: boolean;
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare id: string;
+  declare email: string;
+  declare password: string;
+  declare cpfCnpj: string;
+  declare name: string;
+  declare uniqueToken: string | null;
+  declare emailVerified: boolean;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 export function initAdmin(sequelize: Sequelize) {
@@ -61,7 +61,7 @@ export function initAdmin(sequelize: Sequelize) {
       },
       uniqueToken: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
         unique: true,
         field: 'unique_token',
       },

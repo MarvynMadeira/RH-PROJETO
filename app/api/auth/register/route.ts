@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     });
 
     try {
-      await sendVerificationEmail(admin.email, uniqueToken);
+      await sendVerificationEmail(validatedData.email, uniqueToken);
     } catch (error) {
       console.error('Erro ao enviar email:', error);
     }

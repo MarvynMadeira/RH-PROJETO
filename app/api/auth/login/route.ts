@@ -17,6 +17,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (admin) {
+      if (!admin.password) {
+        console.error(
+          `ERRO: Usuário Admin ID ${admin.id} encontrado, mas sem senha hashada.`,
+        );
+        throw new UnauthorizedError('Erro de credenciais. Contate o suporte.');
+      }
       const isValidPassword = await verifyPassword(
         validatedData.password,
         admin.password,

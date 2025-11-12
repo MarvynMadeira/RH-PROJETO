@@ -1,7 +1,9 @@
 import { Sequelize } from 'sequelize';
+import * as pg from 'pg';
 
 const sequelize = new Sequelize({
   dialect: 'postgres',
+  dialectModule: pg,
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME || 'rh-helper-db',
