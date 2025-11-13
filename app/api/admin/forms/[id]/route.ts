@@ -57,29 +57,3 @@ export async function PUT(
     return handleError(error);
   }
 }
-
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } },
-) {
-  try {
-    const admin = requireAdmin(request);
-
-    const form = await Form.findOne({
-      where: { id: params.id, adminId: admin.id },
-    });
-
-    if (!form) {
-      throw new NotFoundError('Formulário');
-    }
-
-    await form.update({ isActive: false });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Formulário deletado com sucesso',
-    });
-  } catch (error) {
-    return handleError(error);
-  }
-}

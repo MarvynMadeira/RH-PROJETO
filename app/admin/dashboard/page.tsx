@@ -4,10 +4,18 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+// Tipagem para as estatísticas
+interface Stats {
+  totalAssociates: number;
+  activeAssociates: number;
+  inactiveAssociates: number;
+  totalForms: number;
+}
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<Stats>({
     totalAssociates: 0,
     activeAssociates: 0,
     inactiveAssociates: 0,
@@ -16,6 +24,7 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Efeito para carregar dados e verificar autenticação
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
@@ -35,9 +44,11 @@ export default function AdminDashboard() {
     loadStats(token);
   }, [router]);
 
+  // Função para carregar as estatísticas (cards do topo)
   const loadStats = async (token: string) => {
     try {
       const [associatesRes, formsRes] = await Promise.all([
+        // Assumindo que você tem uma rota GET /api/admin/associates
         fetch('/api/admin/associates', {
           headers: { Authorization: `Bearer ${token}` },
         }),
@@ -45,6 +56,10 @@ export default function AdminDashboard() {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
+
+      if (!associatesRes.ok || !formsRes.ok) {
+        throw new Error('Falha ao buscar dados da API.');
+      }
 
       const associatesData = await associatesRes.json();
       const formsData = await formsRes.json();
@@ -66,19 +81,25 @@ export default function AdminDashboard() {
     }
   };
 
+  // Navega para a página de busca com a query
   const handleSearch = () => {
     if (searchQuery.trim()) {
       router.push(
         `/admin/associates?search=${encodeURIComponent(searchQuery)}`,
       );
+    } else {
+      router.push('/admin/associates');
     }
   };
 
+  // Desloga o usuário
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     router.push('/login');
   };
+
+  // ---- RENDERIZAÇÃO ----
 
   if (loading) {
     return (
@@ -99,7 +120,9 @@ export default function AdminDashboard() {
           <div className='flex items-center justify-between'>
             <div>
               <h1 className='text-2xl font-bold text-gray-900'>RH Helper</h1>
-              <p className='text-sm text-gray-600'>Bem-vindo, {user?.name}</p>
+              <p className='text-sm text-gray-600'>
+                Bem-vindo, {user?.name || 'Admin'}
+              </p>
             </div>
             <button
               onClick={handleLogout}
@@ -111,9 +134,11 @@ export default function AdminDashboard() {
         </div>
       </header>
 
+      {/* Conteúdo Principal */}
       <div className='container mx-auto px-4 py-8'>
         {/* Stats Cards */}
         <div className='mb-8 grid grid-cols-1 gap-6 md:grid-cols-4'>
+          {/* Card Total Associados */}
           <div className='rounded-xl bg-white p-6 shadow'>
             <div className='flex items-center justify-between'>
               <div>
@@ -125,6 +150,7 @@ export default function AdminDashboard() {
                 </p>
               </div>
               <div className='flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100'>
+                {/* Ícone de Usuários */}
                 <svg
                   className='h-6 w-6 text-blue-600'
                   fill='none'
@@ -141,7 +167,7 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-
+          {/* Card Ativos */}
           <div className='rounded-xl bg-white p-6 shadow'>
             <div className='flex items-center justify-between'>
               <div>
@@ -151,6 +177,7 @@ export default function AdminDashboard() {
                 </p>
               </div>
               <div className='flex h-12 w-12 items-center justify-center rounded-lg bg-green-100'>
+                {/* Ícone Check */}
                 <svg
                   className='h-6 w-6 text-green-600'
                   fill='none'
@@ -167,7 +194,7 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-
+          {/* Card Desvinculados */}
           <div className='rounded-xl bg-white p-6 shadow'>
             <div className='flex items-center justify-between'>
               <div>
@@ -177,6 +204,7 @@ export default function AdminDashboard() {
                 </p>
               </div>
               <div className='flex h-12 w-12 items-center justify-center rounded-lg bg-red-100'>
+                {/* Ícone X */}
                 <svg
                   className='h-6 w-6 text-red-600'
                   fill='none'
@@ -193,7 +221,7 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-
+          {/* Card Formulários */}
           <div className='rounded-xl bg-white p-6 shadow'>
             <div className='flex items-center justify-between'>
               <div>
@@ -203,6 +231,7 @@ export default function AdminDashboard() {
                 </p>
               </div>
               <div className='flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100'>
+                {/* Ícone Documento */}
                 <svg
                   className='h-6 w-6 text-purple-600'
                   fill='none'
@@ -223,7 +252,7 @@ export default function AdminDashboard() {
 
         {/* Main Actions */}
         <div className='mb-8 grid grid-cols-1 gap-6 md:grid-cols-3'>
-          {/* Buscar */}
+          {/* Card Buscar (COM A BUSCA DENTRO) */}
           <div className='rounded-xl bg-white p-6 shadow'>
             <h3 className='mb-4 flex items-center text-lg font-bold text-gray-900'>
               <svg
@@ -244,22 +273,30 @@ export default function AdminDashboard() {
             <p className='mb-4 text-sm text-gray-600'>
               Use a busca avançada para encontrar associados
             </p>
-            <div className='mb-3 flex gap-2'>
+
+            {/*
+              *** MODIFICAÇÃO AQUI ***
+              - Adicionado 'flex-col sm:flex-row' para empilhar em telas móveis e alinhar lado a lado em telas maiores.
+              - Adicionado 'w-full' e 'sm:w-auto'/'sm:flex-1' para responsividade.
+            */}
+            <div className='mb-3 flex flex-col gap-2 sm:flex-row'>
               <input
                 type='text'
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 placeholder='Ex: nome João, status ativo'
-                className='flex-1 rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500'
+                className='w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 sm:flex-1'
               />
               <button
                 onClick={handleSearch}
-                className='rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700'
+                className='w-full rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700 sm:w-auto'
               >
                 Buscar
               </button>
             </div>
+            {/* *** FIM DA MODIFICAÇÃO *** */}
+
             <Link
               href='/admin/associates'
               className='text-sm text-blue-600 hover:text-blue-700'
@@ -268,7 +305,7 @@ export default function AdminDashboard() {
             </Link>
           </div>
 
-          {/* Formulários */}
+          {/* Card Formulários (MODIFICADO) */}
           <div className='rounded-xl bg-white p-6 shadow'>
             <h3 className='mb-4 flex items-center text-lg font-bold text-gray-900'>
               <svg
@@ -284,28 +321,22 @@ export default function AdminDashboard() {
                   d='M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
                 />
               </svg>
-              Formulários
+              Formulário Padrão
             </h3>
             <p className='mb-4 text-sm text-gray-600'>
-              Gerencie formulários e gere links para associados
+              Gerencie o formulário padrão e gere links para associados
             </p>
             <div className='space-y-2'>
               <Link
                 href='/admin/forms'
                 className='block w-full rounded-lg bg-green-600 px-4 py-2 text-center text-white transition hover:bg-green-700'
               >
-                Gerenciar Formulários
-              </Link>
-              <Link
-                href='/admin/forms/create'
-                className='block w-full rounded-lg border border-green-600 px-4 py-2 text-center text-green-600 transition hover:bg-green-50'
-              >
-                Criar Novo Formulário
+                Gerenciar Formulário
               </Link>
             </div>
           </div>
 
-          {/* Campos Customizados */}
+          {/* Card Campos Customizados */}
           <div className='rounded-xl bg-white p-6 shadow'>
             <h3 className='mb-4 flex items-center text-lg font-bold text-gray-900'>
               <svg
@@ -321,10 +352,10 @@ export default function AdminDashboard() {
                   d='M12 6v6m0 0v6m0-6h6m-6 0H6'
                 />
               </svg>
-              Criar Campo
+              Campos Customizados
             </h3>
             <p className='mb-4 text-sm text-gray-600'>
-              Adicione novos campos para coletar informações
+              Adicione novos campos ao formulário padrão
             </p>
             <div className='space-y-2'>
               <Link
@@ -343,12 +374,13 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Quick Links */}
+        {/* Ações Rápidas (CENTRALIZADO) */}
         <div className='rounded-xl bg-white p-6 shadow'>
           <h3 className='mb-4 text-lg font-bold text-gray-900'>
             Ações Rápidas
           </h3>
-          <div className='grid grid-cols-2 gap-4 md:grid-cols-4'>
+          <div className='flex flex-wrap items-center justify-center gap-4'>
+            {/* Desvinculados */}
             <Link
               href='/admin/inactive'
               className='group rounded-lg border-2 border-gray-200 p-4 text-center transition hover:border-blue-500'
@@ -358,31 +390,26 @@ export default function AdminDashboard() {
                 Desvinculados
               </p>
             </Link>
-            <Link
-              href='/admin/reports'
+
+            {/* Ajuda (Link de E-mail) */}
+            <a
+              href='mailto:rh.helper2025@gmail.com?subject=Suporte%20RH%20Helper%20Admin'
               className='group rounded-lg border-2 border-gray-200 p-4 text-center transition hover:border-blue-500'
             >
-              <div className='mb-2 text-3xl'>📊</div>
+              <div className='mb-2 text-3xl'>📧</div>
               <p className='text-sm font-medium text-gray-700 group-hover:text-blue-600'>
-                Relatórios
+                Falar com Suporte
               </p>
-            </Link>
+            </a>
+
+            {/* Buscar Associados */}
             <Link
-              href='/admin/settings'
+              href='/admin/associates'
               className='group rounded-lg border-2 border-gray-200 p-4 text-center transition hover:border-blue-500'
             >
-              <div className='mb-2 text-3xl'>⚙️</div>
+              <div className='mb-2 text-3xl'>👥</div>
               <p className='text-sm font-medium text-gray-700 group-hover:text-blue-600'>
-                Configurações
-              </p>
-            </Link>
-            <Link
-              href='/admin/help'
-              className='group rounded-lg border-2 border-gray-200 p-4 text-center transition hover:border-blue-500'
-            >
-              <div className='mb-2 text-3xl'>❓</div>
-              <p className='text-sm font-medium text-gray-700 group-hover:text-blue-600'>
-                Ajuda
+                Buscar Associados
               </p>
             </Link>
           </div>

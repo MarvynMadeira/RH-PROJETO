@@ -324,7 +324,6 @@ function DadosTab({
   onChange: (data: any) => void;
 }) {
   const updateField = (path: string, value: any) => {
-    // Helper para atualizar dados aninhados
     const keys = path.split('.');
     const newData = JSON.parse(JSON.stringify(data || {})); // Deep copy
     let current = newData;

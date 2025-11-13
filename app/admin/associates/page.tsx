@@ -97,7 +97,7 @@ export default function AssociatesListPage() {
                 href='/admin/dashboard'
                 className='text-gray-600 hover:text-gray-900'
               >
-                ← Dashboard
+                ← Painel Principal
               </Link>
               <h1 className='text-2xl font-bold text-gray-900'>Associados</h1>
             </div>
