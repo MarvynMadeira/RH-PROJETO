@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase/client';
+import { createClientSupabase } from '../../../lib/supabase/client';
+import { SupabaseClient } from '@supabase/supabase-js';
+
+const supabase: SupabaseClient = createClientSupabase();
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,23 +16,38 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setFormData((prev) => ({ ...prev, [id]: value }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Mapeia erros comuns para mensagens mais amigáveis
+        if (error.message.includes('Invalid login credentials')) {
+          throw new Error(
+            'Credenciais inválidas. Verifique seu email e senha.',
+          );
+        }
+        throw error;
+      }
 
+      // Redireciona e força um refresh para que os Server Components reconheçam o novo cookie
       router.push('/formularios');
       router.refresh();
     } catch (err: any) {
-      setError(err.message || 'Erro ao fazer login');
+      console.error('Login Error:', err);
+      setError(err.message || 'Erro desconhecido ao fazer login.');
     } finally {
       setLoading(false);
     }
@@ -43,10 +61,10 @@ export default function LoginPage() {
           <p className='mt-2 text-gray-600'>Faça login na sua conta</p>
         </div>
 
-        <div className='rounded-lg bg-white p-8 shadow-md'>
+        <div className='rounded-lg bg-white p-8 shadow-2xl'>
           <form onSubmit={handleSubmit} className='space-y-6'>
             {error && (
-              <div className='rounded border border-red-200 bg-red-50 px-4 py-3 text-red-700'>
+              <div className='rounded border border-red-200 bg-red-50 p-4 font-medium text-red-700'>
                 {error}
               </div>
             )}
@@ -63,9 +81,7 @@ export default function LoginPage() {
                 type='email'
                 required
                 value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
+                onChange={handleInputChange}
                 className='w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none'
               />
             </div>
@@ -82,9 +98,7 @@ export default function LoginPage() {
                 type='password'
                 required
                 value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
+                onChange={handleInputChange}
                 className='w-full rounded-md border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none'
               />
             </div>
@@ -92,7 +106,7 @@ export default function LoginPage() {
             <button
               type='submit'
               disabled={loading}
-              className='w-full rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50'
+              className='w-full rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white transition duration-150 hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50'
             >
               {loading ? 'Entrando...' : 'Entrar'}
             </button>

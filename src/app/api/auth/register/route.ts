@@ -1,17 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { sendConfirmationEmail } from '@/lib/email';
-import { generateToken } from '@/lib/utils';
+import { generateSecureToken } from '@/lib/security';
+import { checkEmailDuplicate, normalizeGmail } from '@/lib/email-validator';
+import { getClientIP, rateLimiters } from '@/lib/rate-limiter';
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting já aplicado no middleware, mas podemos adicionar por email também
     const { email, password, nome } = await request.json();
+
+    // Validações de segurança
+    if (!email || !password || !nome) {
+      return NextResponse.json({ error: 'Dados incompletos' }, { status: 400 });
+    }
+
+    if (password.length < 6) {
+      return NextResponse.json(
+        { error: 'Senha deve ter pelo menos 6 caracteres' },
+        { status: 400 },
+      );
+    }
+
+    if (nome.length < 3) {
+      return NextResponse.json(
+        { error: 'Nome deve ter pelo menos 3 caracteres' },
+        { status: 400 },
+      );
+    }
 
     const supabase = createServerSupabaseClient();
 
-    // Criar usuário no Supabase Auth
+    // Normalizar email e verificar duplicata
+    const normalizedEmail = normalizeGmail(email);
+    const { exists } = await checkEmailDuplicate(email, supabase);
+
+    if (exists) {
+      return NextResponse.json(
+        {
+          error:
+            'Este email já está em uso. Se você já tem uma conta, faça login.',
+        },
+        { status: 409 },
+      );
+    }
+
+    // Rate limit adicional por email normalizado
+    const emailLimit = rateLimiters.register.check(normalizedEmail);
+    if (!emailLimit.allowed) {
+      return NextResponse.json(
+        {
+          error:
+            'Muitas tentativas com este email. Tente novamente mais tarde.',
+        },
+        { status: 429 },
+      );
+    }
+
+    // Criar usuário com email normalizado
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
+      email: normalizedEmail,
       password,
       options: {
         data: {
@@ -32,8 +80,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Criar token de confirmação
-    const token = generateToken();
+    // Criar token de confirmação seguro
+    const token = generateSecureToken();
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
 
@@ -49,8 +97,16 @@ export async function POST(request: NextRequest) {
       console.error('Erro ao criar token:', tokenError);
     }
 
-    // Enviar email
-    await sendConfirmationEmail(email, token);
+    // Rate limit para envio de email
+    const ip = getClientIP(request);
+    const emailSendLimit = rateLimiters.email.check(ip);
+
+    if (emailSendLimit.allowed) {
+      // Enviar email
+      await sendConfirmationEmail(normalizedEmail, token);
+    } else {
+      console.warn('Rate limit de email excedido para IP:', ip);
+    }
 
     return NextResponse.json({
       message: 'Registro criado! Verifique seu email para confirmar.',

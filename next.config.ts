@@ -1,16 +1,20 @@
-import path from 'path';
-import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
-  reactCompiler: true,
-  webpack(config) {
-    // 🔹 Garante que o Next reconhece o alias @src em runtime
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      '@src': path.resolve(__dirname, 'src'),
-    };
-    return config;
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.s3.amazonaws.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+      },
+    ],
+  },
+  experimental: {
+    serverActions: {},
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
