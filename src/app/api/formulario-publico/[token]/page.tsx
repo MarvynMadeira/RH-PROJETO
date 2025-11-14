@@ -7,6 +7,11 @@ import { Survey } from 'survey-react-ui';
 import 'survey-core/defaultV2.min.css';
 import { officialFormSurveyJSON } from '@/schemas/officialForm';
 
+interface PublicLinkResponse {
+  valid: boolean;
+  adminId?: string;
+}
+
 export default function FormularioPublicoPage() {
   const params = useParams();
   const router = useRouter();
@@ -15,21 +20,27 @@ export default function FormularioPublicoPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (!params?.token) {
+      setValid(false);
+      return;
+    }
+
     const verificarLink = async () => {
       try {
         const res = await fetch(
-          `/api/formularios/link-publico?token=${params?.token}`,
+          `/api/formularios/link-publico?token=${params.token}`,
         );
-        const data = await res.json();
+        const data: PublicLinkResponse = await res.json();
 
-        if (!res.ok) {
+        if (!res.ok || !data.valid) {
           setValid(false);
           return;
         }
 
-        setValid(data.valid);
-        setAdminId(data.adminId);
+        setValid(true);
+        if (data.adminId) setAdminId(data.adminId);
       } catch (err) {
+        console.error('Erro ao verificar link público:', err);
         setValid(false);
       }
     };
@@ -43,88 +54,76 @@ export default function FormularioPublicoPage() {
     try {
       const data = sender.data;
 
-      // Upload de arquivos para S3
       const uploadedData = await uploadFiles(data);
 
-      // Salvar associado
       const res = await fetch('/api/associados', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(uploadedData),
       });
 
-      if (!res.ok) {
-        throw new Error('Erro ao salvar');
-      }
+      if (!res.ok) throw new Error('Erro ao salvar cadastro');
 
       alert('Cadastro realizado com sucesso!');
       router.push('/');
     } catch (err) {
-      alert('Erro ao enviar formulário');
-      console.error(err);
+      console.error('Erro ao enviar formulário:', err);
+      alert('Erro ao enviar formulário. Tente novamente.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const uploadFiles = async (data: any) => {
-    // Helper para fazer upload de arquivos
     const uploadFile = async (file: File) => {
-      const formData = new FormData();
-      formData.append('file', file);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
 
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
 
-      const result = await res.json();
-      return result.key;
+        if (!res.ok) throw new Error('Erro ao enviar arquivo');
+
+        const result = await res.json();
+        return result.key;
+      } catch (err) {
+        console.error('Erro no upload do arquivo:', err);
+        return null; // Não quebra o envio se um arquivo falhar
+      }
     };
 
-    // Clonar dados
     const newData = JSON.parse(JSON.stringify(data));
 
-    // Upload de todos os arquivos (RG, comprovantes, etc)
-    if (data.dadosPessoais?.endereco?.comprovacaoResidencia?.[0]) {
-      newData.dadosPessoais.endereco.comprovacaoResidencia = await uploadFile(
-        data.dadosPessoais.endereco.comprovacaoResidencia[0],
-      );
+    const camposArquivos = [
+      'dadosPessoais.endereco.comprovacaoResidencia',
+      'dadosPessoais.rgAnexoFrente',
+      'dadosPessoais.rgAnexoTras',
+      'dadosPessoais.certificadoReservista',
+      'responsavel.assinatura',
+    ];
+
+    for (const campo of camposArquivos) {
+      const partes = campo.split('.');
+      let ref = newData;
+      for (let i = 0; i < partes.length - 1; i++) ref = ref[partes[i]];
+      const ultimo = partes[partes.length - 1];
+
+      if (ref?.[ultimo]?.[0]) {
+        const key = await uploadFile(ref[ultimo][0]);
+        if (key) ref[ultimo] = key;
+      }
     }
 
-    if (data.dadosPessoais?.rgAnexoFrente?.[0]) {
-      newData.dadosPessoais.rgAnexoFrente = await uploadFile(
-        data.dadosPessoais.rgAnexoFrente[0],
-      );
-    }
-
-    if (data.dadosPessoais?.rgAnexoTras?.[0]) {
-      newData.dadosPessoais.rgAnexoTras = await uploadFile(
-        data.dadosPessoais.rgAnexoTras[0],
-      );
-    }
-
-    if (data.dadosPessoais?.certificadoReservista?.[0]) {
-      newData.dadosPessoais.certificadoReservista = await uploadFile(
-        data.dadosPessoais.certificadoReservista[0],
-      );
-    }
-
-    if (data.responsavel?.assinatura?.[0]) {
-      newData.responsavel.assinatura = await uploadFile(
-        data.responsavel.assinatura[0],
-      );
-    }
-
-    // Graduações
+    // Upload de graduações
     if (data.titulosFormacao?.graduacoes) {
       newData.titulosFormacao.graduacoes = await Promise.all(
         data.titulosFormacao.graduacoes.map(async (grad: any) => {
           if (grad.certificado?.[0]) {
-            return {
-              ...grad,
-              certificado: await uploadFile(grad.certificado[0]),
-            };
+            const key = await uploadFile(grad.certificado[0]);
+            return key ? { ...grad, certificado: key } : grad;
           }
           return grad;
         }),
